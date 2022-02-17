@@ -1,0 +1,67 @@
+---
+title: "STAA 566 HW2"
+author: "Brian Leonhardi"
+date: "2/17/2022"
+output: html_document
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file,
+ encoding=encoding, 
+ output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Code
+
+The purpose of this document is to examine trends in rates of various causes of death over the period 2019-2021 in the U.S., based on quarterly data provided by the CDC.
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(plotly)
+
+# Read in CDC database on Causes of Death, 2019-2021 by quarter
+data <- read.csv("NCHS_-_VSRR_Quarterly_provisional_estimates_for_selected_indicators_of_mortality.csv")
+
+# select Quarter, Time Period, Cause of Death, and Overall Rate
+# look at only the crude death rates, filtering out the age-adjusted rates
+overall <- data %>% filter(Rate.Type == "Crude") %>%
+  select(c("ï..Year.and.Quarter", "Time.Period", "Cause.of.Death", "Overall.Rate"))
+
+# after viewing the rates for various causes, select several causes of interest
+# this includes those with the highest rates and those that might be impacted by a pandemic
+overall_select <- overall %>% filter(Cause.of.Death %in% c("Heart disease", "Cancer",
+        "Coronavirus disease 2019 (COVID-19)", "Falls, ages 65 and over", "Suicide",
+        "Homicide", "Drug overdose"))
+
+# split the data by time period: 12 months vs 3 months
+overall_select_12 <- overall_select %>% filter(Time.Period == "12 months ending with quarter")
+overall_select_3 <- overall_select %>% filter(Time.Period == "3-month period")
+
+```
+
+## Plotting the Results
+
+Each cause of death seems to be plotting on its own y-scale.  As a result, Cancer appears to have a lower rate than drug overdose, while quite the opposite is actually true.
+
+Also, the use of "scale_y_continuous" kept resulting in an error message "Discrete value applied to continuous scale."  
+
+Clearly, much work is needed on this plot.  Eventually I would like to plot the 3-month data and the 12-month data side-by-side for comparison.
+
+```{r}
+# plot the the 3-month data over time, color coding by cause of death
+overall_select_3_h <- highlight_key(overall_select_3, ~Overall.Rate)
+p <- ggplot(overall_select_3_h, aes(ï..Year.and.Quarter, Overall.Rate, group = Cause.of.Death, col = Cause.of.Death))
+ p + labs(title = "Rates of Various Causes of Death\n U.S., 2019-2021") +
+#         subtitle = "Recorded 1950-2019; Predicted through 2050") +
+  geom_point(aes(group = Cause.of.Death, alpha=.5)) + 
+  geom_line() +
+#   geom_smooth(method = "loess") +
+   xlab("Year and Quarter") +
+  ylab("Overall Death Rate, Crude") +
+   scale_y_discrete(breaks = seq(0, 250, by=50))
+
+```
